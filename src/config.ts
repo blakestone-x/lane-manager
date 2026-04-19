@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
+import { execSync } from 'child_process';
 import { GlobalConfig, PersistedLane } from './types.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.lane-manager');
@@ -9,11 +11,73 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 export function getGlobalConfig(): GlobalConfig {
   return {
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    defaultModel: process.env.LANE_MANAGER_MODEL || 'claude-sonnet-4-6',
+    defaultModel: process.env.LANE_MANAGER_MODEL,
+    claudeBin: resolveClaudeBinary(),
     configDir: CONFIG_DIR,
     lanesDir: LANES_DIR,
   };
+}
+
+export function resolveClaudeBinary(): string {
+  if (process.env.CLAUDE_BIN && existsSync(process.env.CLAUDE_BIN)) {
+    return process.env.CLAUDE_BIN;
+  }
+
+  const onPath = findOnPath(process.platform === 'win32' ? 'claude.cmd' : 'claude')
+    ?? findOnPath('claude');
+  if (onPath) return onPath;
+
+  const candidates: string[] = [];
+  if (process.platform === 'win32') {
+    const roaming = process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming');
+    const base = path.join(roaming, 'Claude', 'claude-code');
+    if (existsSync(base)) {
+      try {
+        const versions = readdirSync(base)
+          .filter((v) => /^\d/.test(v))
+          .sort((a, b) => compareVersions(b, a));
+        for (const v of versions) {
+          candidates.push(path.join(base, v, 'claude.exe'));
+        }
+      } catch { /* ignore */ }
+    }
+  } else {
+    candidates.push(
+      path.join(os.homedir(), '.claude', 'local', 'claude'),
+      '/usr/local/bin/claude',
+      '/opt/homebrew/bin/claude'
+    );
+  }
+
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+
+  throw new Error(
+    'Could not locate the `claude` CLI. Install Claude Code (https://claude.com/code) or set CLAUDE_BIN.'
+  );
+}
+
+function findOnPath(binary: string): string | null {
+  try {
+    const cmd = process.platform === 'win32' ? `where ${binary}` : `command -v ${binary}`;
+    const out = execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    if (!out) return null;
+    const first = out.split(/\r?\n/)[0].trim();
+    return first && existsSync(first) ? first : null;
+  } catch {
+    return null;
+  }
+}
+
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
 }
 
 export async function ensureConfigDir(): Promise<void> {
