@@ -17,27 +17,67 @@ Built for managing 12+ repos where you need several concurrent Claude sessions, 
 
 ## Install
 
+Clone, install, and build:
+
 ```bash
+git clone https://github.com/blakestone-x/lane-manager.git
 cd lane-manager
+npm run setup     # npm install + npm run build + npm link
+```
+
+`npm run setup` symlinks two global commands: `lane-manager` and the short alias `lm`.
+
+If you prefer not to link globally:
+
+```bash
 npm install
 npm run build
 ```
 
-Optionally link globally:
+## Set the API key
 
 ```bash
-npm link
-lane-manager   # or: lm
+# macOS/Linux
+export ANTHROPIC_API_KEY=sk-ant-...
+# Windows (PowerShell)
+$env:ANTHROPIC_API_KEY="sk-ant-..."
+# Windows (cmd, persistent)
+setx ANTHROPIC_API_KEY "sk-ant-..."
 ```
 
 ## Run
 
+Once linked:
+
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-npm run dev
-# or after build:
-npm start
+lm                # launches the TUI
+lm --help         # options
+lm --list         # show saved lanes and exit
 ```
+
+Without the link:
+
+```bash
+npm run launch    # builds if needed, then launches
+npm run dev       # tsx, no build step
+npm start         # runs dist/index.js directly
+```
+
+### Desktop shortcut (Windows)
+
+From the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-desktop-shortcut.ps1
+```
+
+This drops "Lane Manager.lnk" on your Desktop. Double-click to launch. The shortcut
+calls `scripts\launch.bat`, which will build the project on first run if needed.
+
+### One-shot launcher
+
+- Windows: `scripts\launch.bat` (double-click or pin to taskbar)
+- macOS/Linux: `scripts/launch.sh`
 
 ## Commands
 

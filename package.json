@@ -12,6 +12,8 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
+    "launch": "npm run build --silent && node dist/index.js",
+    "setup": "npm install && npm run build && npm link",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run build"
   },
