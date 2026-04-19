@@ -10,14 +10,19 @@ async function main() {
   const program = new Command();
   program
     .name('lane-manager')
-    .description('Multi-lane orchestrator for concurrent Claude Agent SDK sessions')
-    .version('0.1.0')
-    .option('-m, --model <model>', 'default model for new lanes', 'claude-sonnet-4-6')
+    .description('Multi-lane orchestrator tiling concurrent Claude Code sessions side-by-side')
+    .version('0.2.0')
+    .option('-m, --model <model>', 'default model alias for new lanes (sonnet, opus, etc.)')
     .option('--no-restore', 'do not auto-restore saved lanes')
     .option('--list', 'list saved lanes and exit')
+    .option('--claude-bin <path>', 'override path to the claude CLI')
     .parse();
 
   const opts = program.opts();
+
+  if (opts.claudeBin) {
+    process.env.CLAUDE_BIN = opts.claudeBin;
+  }
 
   if (opts.list) {
     const saved = await listSavedLanes();
@@ -31,25 +36,37 @@ async function main() {
     return;
   }
 
-  const config = getGlobalConfig();
-  if (!config.apiKey) {
-    console.error('ERROR: ANTHROPIC_API_KEY environment variable is not set.');
-    console.error('Get a key at https://console.anthropic.com and then:');
-    console.error('  export ANTHROPIC_API_KEY=sk-ant-...');
+  let config;
+  try {
+    config = getGlobalConfig();
+  } catch (err: any) {
+    console.error(`ERROR: ${err.message}`);
     process.exit(1);
   }
 
   await ensureConfigDir();
 
-  const manager = new LaneManager(config.apiKey, opts.model || config.defaultModel);
+  const manager = new LaneManager({
+    claudeBin: config.claudeBin,
+    defaultModel: opts.model || config.defaultModel,
+  });
 
-  let initialMessage: string | undefined;
+  let initialMessage: string | undefined = `claude: ${config.claudeBin}`;
   if (opts.restore !== false) {
     const count = await manager.restoreAll();
     if (count > 0) initialMessage = `Restored ${count} saved lane(s).`;
   }
 
-  render(React.createElement(App, { manager, initialMessage }));
+  const { waitUntilExit } = render(React.createElement(App, { manager, initialMessage }));
+
+  const shutdown = () => {
+    manager.shutdownAll();
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
+  await waitUntilExit();
+  manager.shutdownAll();
 }
 
 main().catch((err) => {

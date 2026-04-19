@@ -1,7 +1,7 @@
 {
   "name": "lane-manager",
-  "version": "0.1.0",
-  "description": "Multi-lane orchestrator for concurrent Claude Agent SDK sessions",
+  "version": "0.2.0",
+  "description": "Multi-lane orchestrator that tiles concurrent Claude Code sessions side-by-side",
   "type": "module",
   "bin": {
     "lane-manager": "./dist/index.js",
@@ -19,25 +19,27 @@
   },
   "keywords": [
     "claude",
+    "claude-code",
     "anthropic",
-    "agent",
     "tui",
     "ink",
-    "orchestrator"
+    "orchestrator",
+    "multi-session"
   ],
   "author": "blakestone-x",
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.1",
     "commander": "^12.1.0",
     "ink": "^5.0.1",
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
-    "react": "^18.3.1"
+    "react": "^18.3.1",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
+    "@types/uuid": "^10.0.0",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"

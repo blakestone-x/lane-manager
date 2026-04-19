@@ -1,4 +1,4 @@
-export type LaneStatus = 'idle' | 'running' | 'waiting' | 'paused' | 'error' | 'killed';
+export type LaneStatus = 'idle' | 'starting' | 'running' | 'paused' | 'error' | 'killed';
 
 export interface LaneMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -13,16 +13,18 @@ export interface LaneTokenUsage {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  costUsd: number;
 }
 
 export interface LaneConfig {
   id: string;
   name: string;
   cwd: string;
-  systemPrompt: string;
-  model: string;
+  systemPrompt?: string;
+  model?: string;
   template?: string;
-  maxTokens?: number;
+  sessionId: string;
+  bypassPermissions: boolean;
 }
 
 export interface LaneState extends LaneConfig {
@@ -32,7 +34,6 @@ export interface LaneState extends LaneConfig {
   createdAt: number;
   lastActivity: number;
   errorMessage?: string;
-  pendingInput?: string;
 }
 
 export interface PersistedLane {
@@ -44,8 +45,8 @@ export interface PersistedLane {
 }
 
 export interface GlobalConfig {
-  apiKey?: string;
-  defaultModel: string;
+  defaultModel?: string;
+  claudeBin: string;
   configDir: string;
   lanesDir: string;
 }
@@ -53,9 +54,8 @@ export interface GlobalConfig {
 export type LaneEvent =
   | { type: 'message'; laneId: string; message: LaneMessage }
   | { type: 'status'; laneId: string; status: LaneStatus; error?: string }
-  | { type: 'stream'; laneId: string; delta: string }
   | { type: 'tokens'; laneId: string; tokens: LaneTokenUsage }
-  | { type: 'tool_use'; laneId: string; toolName: string; input: any }
+  | { type: 'tool_use'; laneId: string; toolName: string; input: unknown }
   | { type: 'tool_result'; laneId: string; toolName: string; output: string };
 
 export interface ICSRepoTemplate {
