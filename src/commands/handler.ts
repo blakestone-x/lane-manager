@@ -48,26 +48,27 @@ export async function handleCommand(
   }
 }
 
-async function cmdNew(args: string[], manager: LaneManager): Promise<CommandResult> {
+function cmdNew(args: string[], manager: LaneManager): CommandResult {
   if (args.length === 0) {
-    return { ok: false, message: 'Usage: /new <name> [cwd|--template <name>]' };
+    return { ok: false, message: 'Usage: /new <name> [cwd] [--template <name>] [--model <alias>]' };
   }
   const name = args[0];
   let cwd: string | undefined;
   let template: string | undefined;
+  let model: string | undefined;
+  let bypass = true;
 
   for (let i = 1; i < args.length; i++) {
     const a = args[i];
-    if (a === '--template' || a === '-t') {
-      template = args[++i];
-    } else if (!cwd) {
-      cwd = a;
-    }
+    if (a === '--template' || a === '-t') template = args[++i];
+    else if (a === '--model' || a === '-m') model = args[++i];
+    else if (a === '--no-bypass') bypass = false;
+    else if (!cwd) cwd = a;
   }
 
   try {
-    const lane = manager.createLane({ name, cwd, template });
-    return { ok: true, message: `Created lane "${lane.name}" at ${lane.cwd}` };
+    const lane = manager.createLane({ name, cwd, template, model, bypassPermissions: bypass });
+    return { ok: true, message: `Created lane "${lane.name}" at ${lane.cwd} (session ${lane.sessionId.slice(0, 8)})` };
   } catch (err: any) {
     return { ok: false, message: err.message };
   }
@@ -87,7 +88,7 @@ function cmdList(manager: LaneManager): CommandResult {
   const active = manager.getActiveLane();
   const lines = lanes.map((l) => {
     const marker = active && l.id === active.id ? '*' : ' ';
-    return `${marker} ${l.name.padEnd(20)} [${l.status.padEnd(7)}] ${l.cwd}`;
+    return `${marker} ${l.name.padEnd(20)} [${l.status.padEnd(8)}] ${l.cwd}`;
   });
   return { ok: true, message: lines.join('\n') };
 }
@@ -114,10 +115,10 @@ function cmdResume(args: string[], manager: LaneManager): CommandResult {
   return ok ? { ok: true, message: `Resumed ${target}` } : { ok: false, message: `Lane not found: ${target}` };
 }
 
-async function cmdBridge(args: string[], manager: LaneManager): Promise<CommandResult> {
+function cmdBridge(args: string[], manager: LaneManager): CommandResult {
   if (args.length < 3) return { ok: false, message: 'Usage: /bridge <from> <to> <message>' };
   const [from, to, ...msg] = args;
-  const ok = await manager.bridge(from, to, msg.join(' '));
+  const ok = manager.bridge(from, to, msg.join(' '));
   return ok
     ? { ok: true, message: `Bridged ${from} → ${to}` }
     : { ok: false, message: `Bridge failed — check lane names` };
@@ -129,7 +130,7 @@ function cmdStatus(manager: LaneManager): CommandResult {
   const byStatus: Record<string, number> = {};
   for (const l of lanes) byStatus[l.status] = (byStatus[l.status] ?? 0) + 1;
   const statusLine = Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' ');
-  const tokenLine = `tokens: in=${tokens.input} out=${tokens.output} cacheR=${tokens.cacheRead} cacheW=${tokens.cacheWrite}`;
+  const tokenLine = `tokens: in=${tokens.input} out=${tokens.output} cacheR=${tokens.cacheRead} cacheW=${tokens.cacheWrite} cost=$${tokens.costUsd.toFixed(4)}`;
   return { ok: true, message: `${lanes.length} lanes | ${statusLine}\n${tokenLine}` };
 }
 
@@ -138,11 +139,11 @@ function cmdTemplates(): CommandResult {
   return { ok: true, message: `ICS templates:\n${lines.join('\n')}` };
 }
 
-async function cmdSend(args: string[], manager: LaneManager): Promise<CommandResult> {
+function cmdSend(args: string[], manager: LaneManager): CommandResult {
   if (args.length < 2) return { ok: false, message: 'Usage: /send <name> <message>' };
   const [target, ...msg] = args;
   try {
-    await manager.sendTo(target, msg.join(' '));
+    manager.sendTo(target, msg.join(' '));
     return { ok: true, message: `Sent to ${target}` };
   } catch (err: any) {
     return { ok: false, message: err.message };
@@ -157,21 +158,22 @@ async function cmdRestore(manager: LaneManager): Promise<CommandResult> {
 function cmdHelp(): CommandResult {
   const msg = `
 Commands:
-  /new <name> [cwd] [--template <name>]  Create a new lane
-  /switch <name>                          Focus a lane
-  /list (or /ls)                          List all lanes
-  /kill <name>                            Stop and remove a lane
-  /pause [name]                           Pause a lane (default: active)
-  /resume [name]                          Resume a paused lane
-  /bridge <from> <to> <message>           Inject context from one lane to another
-  /send <name> <message>                  Send a message to a specific lane
-  /status                                 Overview of all lanes + tokens
-  /templates                              List ICS repo templates
-  /restore                                Restore all saved lanes
-  /help                                   Show this help
+  /new <name> [cwd] [--template <name>] [--model <alias>]   Spawn a new Claude Code lane
+  /switch <name>                   Focus a lane
+  /list (or /ls)                   List all lanes
+  /kill <name>                     Stop and remove a lane
+  /pause [name]                    Pause a lane (default: focused)
+  /resume [name]                   Resume a paused lane
+  /bridge <from> <to> <message>    Inject context from one lane to another
+  /send <name> <message>           Send a message to a specific lane
+  /status                          Overview of all lanes + tokens
+  /templates                       List ICS repo templates
+  /restore                         Restore all saved lanes
+  /help                            Show this help
+  /quit (or /exit)                 Shut down all lanes and exit
 
-Text without a leading / goes to the active lane.
-Keys: Ctrl+N (next lane), Ctrl+P (prev lane), Ctrl+C (quit)
+Chat in the focused lane by typing into its pane. Tab / Ctrl+N switch panes.
+Press / to open the command bar at any time. ESC cancels the command bar.
 `.trim();
   return { ok: true, message: msg };
 }
