@@ -5,7 +5,6 @@ import { GlobalConfig, PersistedLane } from './types.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.lane-manager');
 const LANES_DIR = path.join(CONFIG_DIR, 'lanes');
-const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 export function getGlobalConfig(): GlobalConfig {
   return {
@@ -65,16 +64,3 @@ export async function deleteSavedLane(id: string): Promise<void> {
   }
 }
 
-export async function readGlobalConfigFile(): Promise<Record<string, any>> {
-  try {
-    const data = await fs.readFile(CONFIG_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {};
-  }
-}
-
-export async function writeGlobalConfigFile(data: Record<string, any>): Promise<void> {
-  await ensureConfigDir();
-  await fs.writeFile(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf-8');
-}
