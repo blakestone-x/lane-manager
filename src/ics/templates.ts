@@ -82,6 +82,3 @@ export const ICS_TEMPLATES: ICSRepoTemplate[] = [
   },
 ];
 
-export function getTemplate(name: string): ICSRepoTemplate | null {
-  return ICS_TEMPLATES.find((t) => t.name === name) ?? null;
-}
