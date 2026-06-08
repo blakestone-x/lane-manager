@@ -39,7 +39,7 @@
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",
     "rimraf": "^6.0.1",
-    "tsx": "^4.19.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.6.3"
   },
   "engines": {
