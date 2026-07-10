@@ -1,14 +1,12 @@
-// Verify multi-turn conversation memory in one Claude Code subprocess.
+// Verify multi-turn conversation memory in one Agent SDK session.
+// Needs Claude Code auth and runs two real turns. Run `npm run build` first.
 import { ClaudeSession } from '../dist/claude-session.js';
-import { resolveClaudeBinary } from '../dist/config.js';
 import { randomUUID } from 'crypto';
 
-const bin = resolveClaudeBinary();
 const sess = new ClaudeSession({
-  claudeBin: bin,
   cwd: process.cwd(),
   sessionId: randomUUID(),
-  bypassPermissions: true,
+  bypassPermissions: false,
 });
 
 const assistantTexts = [];

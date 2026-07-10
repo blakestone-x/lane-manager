@@ -182,9 +182,9 @@ export function App({ manager, initialMessage }: AppProps) {
           </Text>
           <Text> </Text>
           <Text>No lanes yet. Get started:</Text>
-          <Text color="yellow">  /new my-lane</Text>
-          <Text color="yellow">  /new portal --template ics-portal</Text>
-          <Text color="yellow">  /templates         list internal repo templates</Text>
+          <Text color="yellow">  /new my-lane                 lane in the current directory</Text>
+          <Text color="yellow">  /new api ~/code/my-api       lane in another repo</Text>
+          <Text color="yellow">  /templates         list lane templates</Text>
           <Text color="yellow">  /restore           reload saved lanes</Text>
           <Text color="yellow">  /help              all commands</Text>
           <Text> </Text>

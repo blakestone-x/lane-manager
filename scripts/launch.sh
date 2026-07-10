@@ -1,21 +1,10 @@
 #!/usr/bin/env bash
 # Lane Manager launcher for macOS/Linux.
+# No API key needed: lanes authenticate through your Claude Code login
+# (or ANTHROPIC_API_KEY if that's how your Claude Code is set up).
 set -e
 
 cd "$(dirname "$0")/.."
-
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-  if [ -f ".env" ]; then
-    set -a
-    . ./.env
-    set +a
-  fi
-fi
-
-if [ -z "$ANTHROPIC_API_KEY" ]; then
-  echo "ERROR: ANTHROPIC_API_KEY is not set. export it in your shell or put it in .env"
-  exit 1
-fi
 
 if [ ! -f "dist/index.js" ]; then
   npm install --silent

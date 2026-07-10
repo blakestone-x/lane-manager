@@ -20,7 +20,7 @@ $Link.TargetPath       = "cmd.exe"
 $Link.Arguments        = "/k `"$Launcher`""
 $Link.WorkingDirectory = "$RepoRoot"
 $Link.WindowStyle      = 1
-$Link.Description      = "Lane Manager — multi-lane Claude orchestrator"
+$Link.Description      = "Lane Manager - multi-lane Claude orchestrator"
 # Use an existing Windows icon as a simple default
 $Link.IconLocation     = "$env:SystemRoot\System32\imageres.dll,109"
 $Link.Save()

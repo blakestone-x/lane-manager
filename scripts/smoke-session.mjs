@@ -1,16 +1,13 @@
-// Smoke test for ClaudeSession: spawn a session, send one message, wait for result.
+// Smoke test for ClaudeSession: start an Agent SDK session, send one message,
+// wait for the result. Needs Claude Code auth (logged-in `claude` CLI or
+// ANTHROPIC_API_KEY) and runs one real turn. Run `npm run build` first.
 import { ClaudeSession } from '../dist/claude-session.js';
-import { resolveClaudeBinary } from '../dist/config.js';
 import { randomUUID } from 'crypto';
 
-const bin = resolveClaudeBinary();
-console.log('Using claude binary:', bin);
-
 const sess = new ClaudeSession({
-  claudeBin: bin,
   cwd: process.cwd(),
   sessionId: randomUUID(),
-  bypassPermissions: true,
+  bypassPermissions: false,
 });
 
 let gotReady = false;

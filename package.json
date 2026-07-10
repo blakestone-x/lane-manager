@@ -1,7 +1,7 @@
 {
   "name": "lane-manager",
   "version": "0.2.0",
-  "description": "Multi-lane orchestrator that tiles concurrent Claude Code sessions side-by-side",
+  "description": "Multi-lane orchestrator that tiles concurrent Claude Agent SDK sessions side-by-side in a terminal UI",
   "type": "module",
   "bin": {
     "lane-manager": "./dist/index.js",
@@ -14,13 +14,16 @@
     "start": "node dist/index.js",
     "launch": "npm run build --silent && node dist/index.js",
     "setup": "npm install && npm run build && npm link",
+    "smoke": "node scripts/smoke-session.mjs && node scripts/smoke-multi.mjs",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "claude",
     "claude-code",
+    "claude-agent-sdk",
     "anthropic",
+    "agent",
     "tui",
     "ink",
     "orchestrator",
@@ -29,6 +32,7 @@
   "author": "blakestone-x",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.206",
     "commander": "^12.1.0",
     "ink": "^5.0.1",
     "ink-spinner": "^5.0.0",

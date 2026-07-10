@@ -3,22 +3,22 @@ import { v4 as uuidv4 } from 'uuid';
 import { Lane } from './lane.js';
 import { LaneConfig, LaneEvent, LaneState, LaneTokenUsage } from './types.js';
 import { saveLane, loadLane, listSavedLanes, deleteSavedLane } from './config.js';
-import { ICS_TEMPLATES } from './ics/templates.js';
+import { expandHome, loadTemplates, templatesPath } from './templates.js';
 
 export interface LaneManagerOptions {
-  claudeBin: string;
+  claudeExecutable?: string;
   defaultModel?: string;
 }
 
 export class LaneManager extends EventEmitter {
   private lanes: Map<string, Lane> = new Map();
-  private claudeBin: string;
+  private claudeExecutable?: string;
   private defaultModel?: string;
   private activeLaneId: string | null = null;
 
-  constructor(options: LaneManagerOptions) {
+  constructor(options: LaneManagerOptions = {}) {
     super();
-    this.claudeBin = options.claudeBin;
+    this.claudeExecutable = options.claudeExecutable;
     this.defaultModel = options.defaultModel;
   }
 
@@ -40,11 +40,13 @@ export class LaneManager extends EventEmitter {
     let systemPrompt = opts.systemPrompt;
 
     if (template) {
-      const tpl = ICS_TEMPLATES.find((t) => t.name === template);
+      const templates = loadTemplates();
+      const tpl = templates.find((t) => t.name === template);
       if (!tpl) {
-        throw new Error(
-          `Unknown template: ${template}. Available: ${ICS_TEMPLATES.map((t) => t.name).join(', ')}`
-        );
+        const hint = templates.length > 0
+          ? `Available: ${templates.map((t) => t.name).join(', ')}`
+          : `No templates defined in ${templatesPath()}`;
+        throw new Error(`Unknown template: ${template}. ${hint}`);
       }
       cwd = cwd ?? tpl.cwd;
       systemPrompt = systemPrompt ?? tpl.systemPrompt;
@@ -53,15 +55,15 @@ export class LaneManager extends EventEmitter {
     const config: LaneConfig = {
       id,
       name: opts.name,
-      cwd: cwd ?? process.cwd(),
+      cwd: expandHome(cwd ?? process.cwd()),
       systemPrompt,
       model: opts.model ?? this.defaultModel,
       template,
       sessionId: uuidv4(),
-      bypassPermissions: opts.bypassPermissions ?? true,
+      bypassPermissions: opts.bypassPermissions ?? false,
     };
 
-    const lane = new Lane(config, { claudeBin: this.claudeBin });
+    const lane = new Lane(config, { claudeExecutable: this.claudeExecutable });
     this.attachLane(lane);
     lane.start();
     return lane;
@@ -70,7 +72,13 @@ export class LaneManager extends EventEmitter {
   private attachLane(lane: Lane): void {
     lane.on('event', (event: LaneEvent) => {
       this.emit('event', event);
-      if (event.type === 'message' || event.type === 'tokens' || event.type === 'status') {
+      // Persist on activity, but never on 'killed': killLane deletes the saved
+      // state right after, and a racing save would resurrect the lane.
+      const shouldSave =
+        event.type === 'message' ||
+        event.type === 'tokens' ||
+        (event.type === 'status' && event.status !== 'killed');
+      if (shouldSave) {
         saveLane(lane.toPersisted()).catch(() => {
           // best-effort persistence
         });
@@ -84,7 +92,7 @@ export class LaneManager extends EventEmitter {
   async restoreLane(id: string): Promise<Lane | null> {
     const persisted = await loadLane(id);
     if (!persisted) return null;
-    const lane = Lane.fromPersisted(persisted, { claudeBin: this.claudeBin });
+    const lane = Lane.fromPersisted(persisted, { claudeExecutable: this.claudeExecutable });
     this.attachLane(lane);
     lane.start();
     return lane;
@@ -95,7 +103,7 @@ export class LaneManager extends EventEmitter {
     let count = 0;
     for (const p of all) {
       if (!this.lanes.has(p.config.id)) {
-        const lane = Lane.fromPersisted(p, { claudeBin: this.claudeBin });
+        const lane = Lane.fromPersisted(p, { claudeExecutable: this.claudeExecutable });
         this.attachLane(lane);
         lane.start();
         count++;

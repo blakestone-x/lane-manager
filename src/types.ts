@@ -42,11 +42,13 @@ export interface PersistedLane {
   tokens: LaneTokenUsage;
   createdAt: number;
   lastActivity: number;
+  /** True once Claude Code has written the session to disk (first completed turn). */
+  sessionEstablished?: boolean;
 }
 
 export interface GlobalConfig {
   defaultModel?: string;
-  claudeBin: string;
+  claudeExecutable?: string;
   configDir: string;
   lanesDir: string;
 }
@@ -58,10 +60,9 @@ export type LaneEvent =
   | { type: 'tool_use'; laneId: string; toolName: string; input: unknown }
   | { type: 'tool_result'; laneId: string; toolName: string; output: string };
 
-export interface ICSRepoTemplate {
+export interface LaneTemplate {
   name: string;
-  displayName: string;
   cwd: string;
-  systemPrompt: string;
-  description: string;
+  systemPrompt?: string;
+  description?: string;
 }

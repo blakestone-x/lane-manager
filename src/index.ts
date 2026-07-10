@@ -10,12 +10,12 @@ async function main() {
   const program = new Command();
   program
     .name('lane-manager')
-    .description('Multi-lane orchestrator tiling concurrent Claude Code sessions side-by-side')
+    .description('Multi-lane orchestrator tiling concurrent Claude Agent SDK sessions side-by-side')
     .version('0.2.0')
     .option('-m, --model <model>', 'default model alias for new lanes (sonnet, opus, etc.)')
     .option('--no-restore', 'do not auto-restore saved lanes')
     .option('--list', 'list saved lanes and exit')
-    .option('--claude-bin <path>', 'override path to the claude CLI')
+    .option('--claude-bin <path>', 'run a specific Claude Code executable instead of the SDK bundled runtime')
     .parse();
 
   const opts = program.opts();
@@ -36,22 +36,16 @@ async function main() {
     return;
   }
 
-  let config;
-  try {
-    config = getGlobalConfig();
-  } catch (err: any) {
-    console.error(`ERROR: ${err.message}`);
-    process.exit(1);
-  }
+  const config = getGlobalConfig();
 
   await ensureConfigDir();
 
   const manager = new LaneManager({
-    claudeBin: config.claudeBin,
+    claudeExecutable: config.claudeExecutable,
     defaultModel: opts.model || config.defaultModel,
   });
 
-  let initialMessage: string | undefined = `claude: ${config.claudeBin}`;
+  let initialMessage: string | undefined;
   if (opts.restore !== false) {
     const count = await manager.restoreAll();
     if (count > 0) initialMessage = `Restored ${count} saved lane(s).`;

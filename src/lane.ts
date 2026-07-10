@@ -12,7 +12,8 @@ import {
 import { ClaudeSession, ClaudeSessionEvent } from './claude-session.js';
 
 interface LaneDeps {
-  claudeBin: string;
+  /** Optional path to a Claude Code executable; the Agent SDK's bundled runtime is the default. */
+  claudeExecutable?: string;
 }
 
 export class Lane extends EventEmitter {
@@ -36,6 +37,7 @@ export class Lane extends EventEmitter {
   private session: ClaudeSession | null = null;
   private pendingInputs: string[] = [];
   private resumeOnStart = false;
+  private sessionEstablished = false;
   private paused = false;
   private toolNameByUseId: Map<string, string> = new Map();
 
@@ -55,6 +57,9 @@ export class Lane extends EventEmitter {
   }
 
   static fromPersisted(p: PersistedLane, deps: LaneDeps): Lane {
+    // Only resume sessions Claude Code actually wrote to disk (at least one
+    // completed turn). Anything else gets a fresh session id.
+    const established = p.sessionEstablished === true && Boolean(p.config.sessionId);
     const config: LaneConfig = {
       id: p.config.id,
       name: p.config.name,
@@ -62,8 +67,8 @@ export class Lane extends EventEmitter {
       systemPrompt: p.config.systemPrompt,
       model: p.config.model,
       template: p.config.template,
-      sessionId: p.config.sessionId ?? uuidv4(),
-      bypassPermissions: p.config.bypassPermissions ?? true,
+      sessionId: established ? p.config.sessionId : uuidv4(),
+      bypassPermissions: p.config.bypassPermissions ?? false,
     };
     const lane = new Lane(config, deps);
     lane.messages = p.messages ?? [];
@@ -76,7 +81,8 @@ export class Lane extends EventEmitter {
     };
     lane.createdAt = p.createdAt ?? Date.now();
     lane.lastActivity = p.lastActivity ?? Date.now();
-    lane.resumeOnStart = Boolean(p.config.sessionId);
+    lane.resumeOnStart = established;
+    lane.sessionEstablished = established;
     return lane;
   }
 
@@ -87,6 +93,7 @@ export class Lane extends EventEmitter {
       tokens: this.tokens,
       createdAt: this.createdAt,
       lastActivity: this.lastActivity,
+      sessionEstablished: this.sessionEstablished,
     };
   }
 
@@ -119,13 +126,13 @@ export class Lane extends EventEmitter {
     if (this.session) return;
     this.setStatus('starting');
     this.session = new ClaudeSession({
-      claudeBin: this.deps.claudeBin,
       cwd: this.cwd,
       sessionId: this.sessionId,
       systemPrompt: this.systemPrompt,
       model: this.model,
       bypassPermissions: this.bypassPermissions,
       resume: this.resumeOnStart,
+      claudeExecutable: this.deps.claudeExecutable,
     });
     this.session.on('event', (e: ClaudeSessionEvent) => this.handleSessionEvent(e));
     this.session.start();
@@ -163,6 +170,9 @@ export class Lane extends EventEmitter {
         return;
       }
       case 'turn_complete':
+        // Claude Code has written the session to disk; it is now resumable.
+        this.sessionEstablished = true;
+        this.resumeOnStart = true;
         this.tokens.input += e.usage.input;
         this.tokens.output += e.usage.output;
         this.tokens.cacheRead += e.usage.cacheRead;

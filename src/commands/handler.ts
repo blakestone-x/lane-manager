@@ -1,5 +1,5 @@
 import { LaneManager } from '../lane-manager.js';
-import { ICS_TEMPLATES } from '../ics/templates.js';
+import { loadTemplates, templatesPath } from '../templates.js';
 
 export interface CommandResult {
   ok: boolean;
@@ -50,25 +50,27 @@ export async function handleCommand(
 
 function cmdNew(args: string[], manager: LaneManager): CommandResult {
   if (args.length === 0) {
-    return { ok: false, message: 'Usage: /new <name> [cwd] [--template <name>] [--model <alias>]' };
+    return { ok: false, message: 'Usage: /new <name> [cwd] [--template <name>] [--model <alias>] [--bypass]' };
   }
   const name = args[0];
   let cwd: string | undefined;
   let template: string | undefined;
   let model: string | undefined;
-  let bypass = true;
+  let bypass = false;
 
   for (let i = 1; i < args.length; i++) {
     const a = args[i];
     if (a === '--template' || a === '-t') template = args[++i];
     else if (a === '--model' || a === '-m') model = args[++i];
+    else if (a === '--bypass') bypass = true;
     else if (a === '--no-bypass') bypass = false;
     else if (!cwd) cwd = a;
   }
 
   try {
     const lane = manager.createLane({ name, cwd, template, model, bypassPermissions: bypass });
-    return { ok: true, message: `Created lane "${lane.name}" at ${lane.cwd} (session ${lane.sessionId.slice(0, 8)})` };
+    const bypassNote = bypass ? ' [permissions bypassed]' : '';
+    return { ok: true, message: `Created lane "${lane.name}" at ${lane.cwd} (session ${lane.sessionId.slice(0, 8)})${bypassNote}` };
   } catch (err: any) {
     return { ok: false, message: err.message };
   }
@@ -135,8 +137,17 @@ function cmdStatus(manager: LaneManager): CommandResult {
 }
 
 function cmdTemplates(): CommandResult {
-  const lines = ICS_TEMPLATES.map((t) => `  ${t.name.padEnd(14)} ${t.description}`);
-  return { ok: true, message: `internal templates:\n${lines.join('\n')}` };
+  const templates = loadTemplates();
+  if (templates.length === 0) {
+    return {
+      ok: true,
+      message:
+        `No templates defined. Create ${templatesPath()} with entries like:\n` +
+        `  [{ "name": "api", "cwd": "~/code/my-api", "systemPrompt": "...", "description": "..." }]`,
+    };
+  }
+  const lines = templates.map((t) => `  ${t.name.padEnd(14)} ${t.description ?? t.cwd}`);
+  return { ok: true, message: `Templates:\n${lines.join('\n')}` };
 }
 
 function cmdSend(args: string[], manager: LaneManager): CommandResult {
@@ -158,7 +169,7 @@ async function cmdRestore(manager: LaneManager): Promise<CommandResult> {
 function cmdHelp(): CommandResult {
   const msg = `
 Commands:
-  /new <name> [cwd] [--template <name>] [--model <alias>]   Spawn a new Claude Code lane
+  /new <name> [cwd] [--template <name>] [--model <alias>] [--bypass]   Spawn a new lane
   /switch <name>                   Focus a lane
   /list (or /ls)                   List all lanes
   /kill <name>                     Stop and remove a lane
@@ -167,10 +178,13 @@ Commands:
   /bridge <from> <to> <message>    Inject context from one lane to another
   /send <name> <message>           Send a message to a specific lane
   /status                          Overview of all lanes + tokens
-  /templates                       List internal repo templates
+  /templates                       List lane templates (~/.lane-manager/templates.json)
   /restore                         Restore all saved lanes
   /help                            Show this help
   /quit (or /exit)                 Shut down all lanes and exit
+
+Lanes run with Claude Code's normal permission rules. --bypass starts a lane
+with --dangerously-skip-permissions semantics: no permission checks at all.
 
 Chat in the focused lane by typing into its pane. Tab / Ctrl+N switch panes.
 Press / to open the command bar at any time. ESC cancels the command bar.
